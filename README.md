@@ -25,6 +25,14 @@ npm run test
 
 `npm run test` runs TypeScript checks, builds `dist/`, and runs the no-network audit.
 
+Create a browser-installable zip package:
+
+```sh
+npm run package:zip
+```
+
+The zip file is written under `packages/`.
+
 ## Load the Extension
 
 1. Run `npm run build`.
@@ -32,6 +40,12 @@ npm run test
 3. Enable developer mode.
 4. Load unpacked extension from the generated `dist/` directory.
 5. For local `file://` previews, enable **Allow access to file URLs** for this extension.
+
+## CI/CD
+
+GitHub Actions builds and verifies the extension on pushes, pull requests, and manual workflow runs. The workflow uploads the packaged zip as an artifact.
+
+Pushing a version tag such as `v0.1.0` also creates or updates the GitHub Release and attaches the generated zip.
 
 ## Browser Notes
 

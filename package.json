@@ -12,6 +12,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && node scripts/build.mjs",
+    "package:zip": "npm run build && node scripts/package-extension.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts",
     "verify:no-network": "node scripts/verify-no-network.js",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@types/chrome": "^0.1.0",
     "@types/node": "22.x",
+    "archiver": "^8.0.0",
     "esbuild": "^0.28.1",
     "eslint": "^9.39.3",
     "typescript": "^5.9.3",
