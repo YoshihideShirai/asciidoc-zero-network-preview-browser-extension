@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AsciiDoc Preview</title>
+  <link rel="stylesheet" href="media/antora-default-preview.css">
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">
+      <img src="media/extension-icon.svg" alt="">
+      <div>
+        <strong>AsciiDoc Preview</strong>
+        <span id="document-title">Ready</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="open-file" type="button">Open</button>
+      <button id="reload-source" type="button">Reload</button>
+      <button id="toggle-width" type="button" aria-pressed="false">Wide</button>
+      <a id="options-link" href="options.html">Options</a>
+    </div>
+  </header>
+  <main>
+    <article id="preview" class="doc asciidoc-preview"></article>
+  </main>
+  <input id="file-input" type="file" accept=".adoc,.ad,.asciidoc,.asc,text/plain" hidden>
+  <script src="network-guards.js"></script>
+  <script src="media/mermaid.min.js"></script>
+  <script src="media/graphre.js"></script>
+  <script src="media/nomnoml.js"></script>
+  <script src="media/vega.min.js"></script>
+  <script src="media/vega-lite.min.js"></script>
+  <script src="media/vega-interpreter.js"></script>
+  <script src="media/json5.min.js"></script>
+  <script src="media/wavedrom-skin-default.js"></script>
+  <script src="media/wavedrom.min.js"></script>
+  <script src="media/bitfield.js"></script>
+  <script src="media/viz-global.js"></script>
+  <script src="mathjax-config.js"></script>
+  <script id="MathJax-script" src="media/mathjax/tex-chtml.js"></script>
+  <script type="module" src="viewer.js"></script>
+</body>
+</html>

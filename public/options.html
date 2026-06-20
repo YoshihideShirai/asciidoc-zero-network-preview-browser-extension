@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AsciiDoc Preview Options</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>AsciiDoc Preview Options</h1>
+    <label>
+      Preview width
+      <select id="preview-width">
+        <option value="default">Default reading width</option>
+        <option value="window">Full window width</option>
+      </select>
+    </label>
+    <label>
+      Allowed remote image hosts
+      <textarea id="allowed-hosts" rows="8" spellcheck="false" placeholder="example.com&#10;https://images.example.org"></textarea>
+    </label>
+    <p class="note">Remote images are blocked unless their exact host is listed here. Host-only entries allow http and https for that host.</p>
+    <button id="save" type="button">Save</button>
+    <p id="status" role="status"></p>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+:sectnums:
+:stem: latexmath
+
+= AsciiDoc Preview Test
+:toc:
+:sectanchors:
+
+This file exercises the local preview features in AsciiDoc Zero-Network Preview.
+
+== Basic AsciiDoc
+
+AsciiDoc inline formatting should render correctly:
+
+* *bold*
+* _italic_
+* `monospace`
+* link:README.md[local README link]
+
+[NOTE]
+====
+Admonitions, lists, tables, diagrams, and math should all render without remote network access.
+====
+
+[%header,cols="1,2"]
+|===
+|Feature |Expected preview behavior
+
+|AsciiDoc
+|Rendered locally with Asciidoctor.js
+
+|Images
+|Remote image URLs are blocked, local image paths are rewritten for the VS Code Webview
+
+|Diagrams
+|Rendered from bundled JavaScript assets
+|===
+
+== MathJax
+
+Inline math: latexmath:[E = mc^2]
+
+[stem]
+++++
+\int_0^1 x^2 dx = \frac{1}{3}
+++++
+
+== Emoji
+
+Emoji macros should render locally as Unicode text:
+
+I emoji:heart[1x] Asciidoctor.js emoji:tada[2x]
+
+Different sizes: emoji:wink[lg] emoji:rocket[3x] emoji:bear[42px]
+
+== Mermaid
+
+.Flowchart
+[mermaid]
+----
+graph TD
+    A[Start] --> B{Is it local?}
+    B -- Yes --> C[Render in Webview]
+    B -- No --> D[Block network access]
+----
+
+.Sequence diagram
+[mermaid]
+....
+sequenceDiagram
+    participant User
+    participant Preview
+    User->>Preview: Open AsciiDoc file
+    Preview-->>User: Render bundled Mermaid
+....
+
+.Class diagram
+[mermaid]
+----
+classDiagram
+    class PreviewDocument {
+        +render()
+        +refresh()
+    }
+    class DiagramRenderer {
+        +renderMermaid(source)
+    }
+    PreviewDocument --> DiagramRenderer : delegates
+----
+
+.State diagram
+[mermaid]
+----
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Rendering: preview opened
+    Rendering --> Ready: SVG generated
+    Rendering --> Error: renderer failed
+    Ready --> Rendering: document changed
+    Error --> Rendering: retry
+----
+
+.Entity relationship diagram
+[mermaid]
+----
+erDiagram
+    DOCUMENT ||--o{ DIAGRAM_BLOCK : contains
+    DIAGRAM_BLOCK }o--|| RENDERER : uses
+    RENDERER ||--|| WEBVIEW : updates
+----
+
+.Gantt chart
+[mermaid]
+----
+gantt
+    title Local preview rendering
+    dateFormat  YYYY-MM-DD
+    section Parse
+    Read document      :done,    parse, 2026-01-01, 1d
+    Extract diagrams   :active,  scan,  after parse, 1d
+    section Render
+    Load bundled assets :assets, after scan, 1d
+    Update Webview      :view,   after assets, 1d
+----
+
+.Pie chart
+[mermaid]
+----
+pie showData
+    title Preview diagram coverage
+    "Mermaid" : 8
+    "PlantUML" : 6
+    "Other diagrams" : 5
+----
+
+== PlantUML
+
+.Sequence diagram
+[plantuml]
+....
+Alice -> Bob : Hello
+Bob --> Alice : Rendered locally
+....
+
+.Class diagram
+[plantuml]
+....
+class PreviewDocument {
+  +render()
+  +refresh()
+}
+
+class DiagramRenderer {
+  +renderPlantUml(source)
+}
+
+PreviewDocument --> DiagramRenderer : delegates
+....
+
+.Use case diagram
+[plantuml]
+....
+left to right direction
+actor User
+rectangle "AsciiDoc Preview" {
+  User --> (Open preview)
+  User --> (Refresh diagrams)
+  (Open preview) --> (Render PlantUML)
+}
+....
+
+.Activity diagram
+[plantuml]
+....
+start
+:Read AsciiDoc document;
+if (PlantUML block?) then (yes)
+  :Normalize source;
+  :Render locally;
+else (no)
+  :Keep source block;
+endif
+stop
+....
+
+.State diagram
+[plantuml]
+....
+[*] --> Idle
+Idle --> Rendering : preview opened
+Rendering --> Ready : SVG generated
+Rendering --> Error : renderer failed
+Ready --> Rendering : document changed
+Error --> Rendering : retry
+....
+
+.Component diagram
+[plantuml]
+....
+package "VS Code Webview" {
+  [Preview Panel] --> [PlantUML Renderer]
+}
+
+[AsciiDoc Extension] --> [Preview Panel] : posts HTML
+[PlantUML Renderer] --> [Bundled PlantUML JS]
+....
+
+== Nomnoml
+
+[nomnoml]
+----
+#direction: right
+[Document] -> [AsciiDoc Preview]
+[AsciiDoc Preview] -> [Bundled nomnoml]
+----
+
+== Vega-Lite
+
+[vegalite]
+----
+{
+  "data": {
+    "values": [
+      {"category": "Mermaid", "count": 8},
+      {"category": "PlantUML", "count": 6},
+      {"category": "Vega-Lite", "count": 4}
+    ]
+  },
+  "mark": "bar",
+  "encoding": {
+    "x": {"field": "category", "type": "nominal"},
+    "y": {"field": "count", "type": "quantitative"},
+    "color": {"field": "category", "type": "nominal"}
+  }
+}
+----
+
+== Vega
+
+[vega]
+----
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "width": 320,
+  "height": 120,
+  "padding": 5,
+  "data": [
+    {
+      "name": "table",
+      "values": [
+        {"x": 0, "y": 28},
+        {"x": 1, "y": 55},
+        {"x": 2, "y": 43},
+        {"x": 3, "y": 91},
+        {"x": 4, "y": 81}
+      ]
+    }
+  ],
+  "scales": [
+    {"name": "x", "type": "point", "range": "width", "domain": {"data": "table", "field": "x"}},
+    {"name": "y", "range": "height", "nice": true, "zero": true, "domain": {"data": "table", "field": "y"}}
+  ],
+  "axes": [
+    {"orient": "bottom", "scale": "x"},
+    {"orient": "left", "scale": "y"}
+  ],
+  "marks": [
+    {
+      "type": "line",
+      "from": {"data": "table"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "x", "field": "x"},
+          "y": {"scale": "y", "field": "y"},
+          "stroke": {"value": "#3b82f6"},
+          "strokeWidth": {"value": 2}
+        }
+      }
+    }
+  ]
+}
+----
+
+== WaveDrom
+
+[wavedrom]
+----
+{signal: [
+  {name: 'clk',  wave: 'p.....'},
+  {name: 'data', wave: 'x.34.x', data: ['A', 'B']},
+  {name: 'req',  wave: '0.1..0'}
+]}
+----
+
+== Bytefield
+
+[bytefield]
+----
+[
+  {"name": "DATA", "bits": 8, "attr": "RO"},
+  {"bits": 4},
+  {"name": "FLAGS", "bits": 4, "attr": "RW"},
+  {"name": "CRC", "bits": 16, "attr": "RO"}
+]
+----
+
+== Source Block Compatibility
+
+[source,mermaid]
+----
+graph LR
+    S[source,mermaid] --> P[Preview diagram]
+----
+
+[source,nomnoml]
+----
+[source,nomnoml] -> [Preview diagram]
+----

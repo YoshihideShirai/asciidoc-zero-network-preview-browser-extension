@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "AsciiDoc Zero-Network Preview",
+  "short_name": "AsciiDoc Preview",
+  "version": "0.1.0",
+  "description": "Local AsciiDoc preview for Chrome and Edge with MathJax, Mermaid, PlantUML, and Kroki-compatible diagrams.",
+  "icons": {
+    "16": "media/extension-icon.png",
+    "48": "media/extension-icon.png",
+    "128": "media/extension-icon.png"
+  },
+  "action": {
+    "default_title": "Open AsciiDoc Preview"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["file:///*", "http://*/*", "https://*/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["file:///*", "http://*/*", "https://*/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["viewer.html", "media/*", "media/mathjax/*", "media/mathjax-newcm/**"],
+      "matches": ["file:///*", "http://*/*", "https://*/*"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "default-src 'none'; img-src 'self' data: file: http: https:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval';"
+  }
+}

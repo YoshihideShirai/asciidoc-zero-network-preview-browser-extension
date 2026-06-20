@@ -1,0 +1,56 @@
+body {
+  margin: 0;
+  background: #f7f8fa;
+  color: #20242a;
+  font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+h1 {
+  margin: 0 0 24px;
+  font-size: 24px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 18px;
+  font-weight: 600;
+}
+
+select,
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #b8c0cc;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fff;
+  color: #20242a;
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid #2f5f9f;
+  border-radius: 6px;
+  background: #376dae;
+  color: #fff;
+  font: inherit;
+}
+
+.note,
+#status {
+  color: #5b6470;
+}

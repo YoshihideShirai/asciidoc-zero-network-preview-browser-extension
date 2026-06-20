@@ -1,0 +1,146 @@
+:root {
+  --toolbar-bg: #f7f8fa;
+  --toolbar-border: #d9dde3;
+  --toolbar-text: #20242a;
+  --muted: #5b6470;
+  --error: #b42318;
+}
+
+body {
+  margin: 0;
+  color: #20242a;
+  background: #fff;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--toolbar-border);
+  background: var(--toolbar-bg);
+  color: var(--toolbar-text);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.brand img {
+  width: 30px;
+  height: 30px;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand span {
+  max-width: min(56vw, 760px);
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+button,
+.actions a {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #b8c0cc;
+  border-radius: 6px;
+  background: #fff;
+  color: #20242a;
+  font: inherit;
+  line-height: 30px;
+  text-decoration: none;
+}
+
+button:hover,
+.actions a:hover {
+  border-color: #778397;
+}
+
+main {
+  padding: 0 16px 48px;
+}
+
+.doc {
+  margin-top: 1.25rem;
+}
+
+body.preview-width-window {
+  --doc-margin: 0;
+  --doc-margin--desktop: 0;
+  --doc-max-width: none;
+  --doc-max-width--desktop: none;
+}
+
+.diagram-frame,
+.mermaid-diagram,
+.kroki-embedded {
+  overflow: auto;
+  margin: 0 0 1rem;
+  padding: 16px;
+  border: 1px solid #d5d9e0;
+  border-radius: 6px;
+  background: var(--pre-background, #f7f7f8);
+}
+
+.diagram-frame svg,
+.mermaid-diagram svg,
+.kroki-embedded svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.diagram-source,
+.kroki-embedded-source {
+  display: none;
+}
+
+.diagram-error,
+.mermaid-error,
+.kroki-embedded-error,
+.mathjax-error,
+.preview-error {
+  white-space: pre-wrap;
+  color: var(--error);
+}
+
+.emoji {
+  display: inline-block;
+  line-height: 1;
+  vertical-align: -0.125em;
+}
+
+@media (max-width: 680px) {
+  .toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+}
