@@ -8,6 +8,7 @@ It previews `.adoc`, `.ad`, `.asciidoc`, and `.asc` files with bundled local ass
 ## Features
 
 - Detects raw AsciiDoc documents opened in Chrome or Edge and redirects them to the extension viewer.
+- Adds a **Full diff preview** button on GitHub pull requests and allowed GitLab merge requests for changed AsciiDoc files.
 - Provides an explicit **Open** button for local file selection.
 - Converts AsciiDoc in the browser with Asciidoctor.js.
 - Renders MathJax, Mermaid, PlantUML, Nomnoml, Vega, Vega-Lite, WaveDrom, and Bytefield with bundled assets.
@@ -52,3 +53,5 @@ Pushing a version tag such as `v0.1.0` also creates or updates the GitHub Releas
 The browser extension cannot read arbitrary sibling files from an already opened document unless the browser grants that file access path. Inline diagram blocks are fully supported; local diagram file macros are reported as unavailable in the viewer instead of silently reading from disk.
 
 Remote images remain blocked unless their exact host is listed in the extension options.
+
+Code review full diff previews are opt-in. When the **Full diff preview** button is clicked, the extension requests review metadata and changed AsciiDoc base/head files from GitHub (`api.github.com` and `raw.githubusercontent.com`) or an allowed HTTPS GitLab host, then renders those full documents locally with the same bundled preview pipeline. GitLab.com is allowed by default; self-managed GitLab hosts must be added in the extension options before the button appears or the API request is accepted. This review-only fetch path is not used for normal local or raw AsciiDoc previews.

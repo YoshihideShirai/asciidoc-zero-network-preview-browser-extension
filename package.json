@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@asciidoctor/core": "^3.0.4",
+    "@lix-js/html-diff": "^0.1.0",
     "asciidoctor-kroki-embedded": "git+https://github.com/YoshihideShirai/asciidoctor-kroki-embedded.git",
     "asciidoctor-numbered-captions": "git+https://github.com/YoshihideShirai/asciidoctor-numbered-captions.git#v1.0.0"
   },

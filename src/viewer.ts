@@ -1,4 +1,5 @@
 import asciidoctorFactory from '@asciidoctor/core';
+import { renderHtmlDiff } from '@lix-js/html-diff';
 import { defaultRenderer, errorRenderer } from 'asciidoctor-kroki-embedded/html';
 import numberedCaptions from 'asciidoctor-numbered-captions';
 import { emojiMap } from './emoji-map';
@@ -6,11 +7,46 @@ import { getSettings, readSource } from './storage';
 import type { PreviewSettings, StoredSource } from './types';
 
 const diagramBlockNames = ['mermaid', 'plantuml', 'nomnoml', 'vega', 'vegalite', 'wavedrom', 'bytefield'];
+const diffKeyElementSelector = [
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'p',
+  'li',
+  'dt',
+  'dd',
+  'tr',
+  'th',
+  'td',
+  'pre',
+  'blockquote',
+  'table',
+  '.sect1',
+  '.sect2',
+  '.sect3',
+  '.sect4',
+  '.sect5',
+  '.listingblock',
+  '.literalblock',
+  '.imageblock',
+  '.openblock',
+  '.sidebarblock',
+  '.admonitionblock',
+  '.exampleblock',
+  '.quoteblock',
+  '.verseblock',
+  '.stemblock',
+  '.kroki-embedded',
+  '.diagram-frame',
+].join(',');
 const preview = document.querySelector<HTMLElement>('#preview');
 const documentTitle = document.querySelector<HTMLElement>('#document-title');
 const openFileButton = document.querySelector<HTMLButtonElement>('#open-file');
 const reloadButton = document.querySelector<HTMLButtonElement>('#reload-source');
-const toggleWidthButton = document.querySelector<HTMLButtonElement>('#toggle-width');
+const optionsLink = document.querySelector<HTMLAnchorElement>('#options-link');
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
 
 let currentSource: StoredSource | undefined;
@@ -20,7 +56,7 @@ void boot();
 
 async function boot(): Promise<void> {
   currentSettings = await getSettings();
-  applyWidth(currentSettings.previewWidth);
+  updateOptionsLink();
 
   const sourceId = new URL(location.href).searchParams.get('sourceId');
   currentSource = sourceId ? await readSource(sourceId) : undefined;
@@ -32,15 +68,20 @@ async function boot(): Promise<void> {
   }
 }
 
+function updateOptionsLink(): void {
+  if (!optionsLink) {
+    return;
+  }
+
+  const returnTo = `viewer.html${location.search}`;
+  optionsLink.href = `options.html?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
 openFileButton?.addEventListener('click', () => fileInput?.click());
 reloadButton?.addEventListener('click', () => {
   if (currentSource) {
     void renderStoredSource(currentSource);
   }
-});
-toggleWidthButton?.addEventListener('click', () => {
-  const next = document.body.classList.contains('preview-width-window') ? 'default' : 'window';
-  applyWidth(next);
 });
 fileInput?.addEventListener('change', () => {
   const file = fileInput.files?.[0];
@@ -50,6 +91,7 @@ fileInput?.addEventListener('change', () => {
 
   void file.text().then((source) => {
     currentSource = {
+      mode: 'source',
       source,
       title: file.name,
       createdAt: Date.now(),
@@ -67,6 +109,11 @@ async function renderStoredSource(stored: StoredSource): Promise<void> {
   preview.innerHTML = '<p>Rendering...</p>';
 
   try {
+    if (stored.mode === 'full-file-diff') {
+      await renderFullFileDiff(stored);
+      return;
+    }
+
     const body = convertAsciiDoc(stored.source);
     preview.innerHTML = rewriteSourceDiagramBlocks(rewriteImageUris(body, stored.sourceUrl, currentSettings));
     prepareKrokiEmbeddedDiagrams();
@@ -74,6 +121,128 @@ async function renderStoredSource(stored: StoredSource): Promise<void> {
   } catch (error) {
     preview.innerHTML = `<h1>Preview failed</h1><pre class="preview-error">${escapeHtml(String(error instanceof Error ? error.stack || error.message : error))}</pre>`;
   }
+}
+
+async function renderFullFileDiff(stored: Extract<StoredSource, { mode: 'full-file-diff' }>): Promise<void> {
+  if (!preview || !currentSettings) {
+    return;
+  }
+
+  preview.replaceChildren();
+  const root = document.createElement('section');
+  root.className = 'full-file-diff-preview';
+
+  const heading = document.createElement('h1');
+  heading.textContent = 'AsciiDoc full file diff preview';
+  root.append(heading);
+
+  const summary = document.createElement('p');
+  summary.className = 'full-file-diff-summary';
+  summary.textContent = `${stored.files.length} AsciiDoc file${stored.files.length === 1 ? '' : 's'} changed.`;
+  root.append(summary);
+
+  if (stored.files.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'full-file-diff-empty';
+    empty.textContent = 'No changed AsciiDoc files were found in this pull request.';
+    root.append(empty);
+    preview.append(root);
+    return;
+  }
+
+  const selector = document.createElement('label');
+  selector.className = 'full-file-diff-selector';
+  selector.textContent = 'File';
+
+  const select = document.createElement('select');
+  for (const [index, file] of stored.files.entries()) {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = getFullFileDiffLabel(file);
+    select.append(option);
+  }
+  selector.append(select);
+  root.append(selector);
+
+  const selectedFileContainer = document.createElement('div');
+  selectedFileContainer.className = 'full-file-diff-selected-file';
+  root.append(selectedFileContainer);
+
+  preview.append(root);
+
+  const renderSelectedFile = async (): Promise<void> => {
+    const selectedIndex = Number.parseInt(select.value, 10);
+    const selectedFile = stored.files[selectedIndex] || stored.files[0];
+    if (!selectedFile) {
+      return;
+    }
+    selectedFileContainer.replaceChildren(renderFullFileDiffFile(selectedFile));
+    prepareKrokiEmbeddedDiagrams();
+    await Promise.allSettled([renderMath(), renderDiagrams()]);
+  };
+
+  select.addEventListener('change', () => {
+    void renderSelectedFile();
+  });
+  await renderSelectedFile();
+}
+
+function renderFullFileDiffFile(file: Extract<StoredSource, { mode: 'full-file-diff' }>['files'][number]): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'full-file-diff-file';
+
+  const fileHeading = document.createElement('h2');
+  fileHeading.textContent = file.newPath || file.oldPath || 'AsciiDoc file';
+  section.append(fileHeading);
+
+  const status = document.createElement('p');
+  status.className = 'full-file-diff-status';
+  status.textContent = file.oldPath && file.newPath && file.oldPath !== file.newPath
+    ? `${file.status}: ${file.oldPath} -> ${file.newPath}`
+    : file.status;
+  section.append(status);
+
+  if (file.error) {
+    const error = document.createElement('pre');
+    error.className = 'preview-error full-file-diff-error';
+    error.textContent = file.error;
+    section.append(error);
+  }
+
+  const diffHtml = renderFullFileHtmlDiff(file);
+  const frame = document.createElement('div');
+  frame.className = 'full-file-diff-frame';
+  frame.append(
+    renderFullFileDiffSide('Before', 'before', diffHtml),
+    renderFullFileDiffSide('After', 'after', diffHtml),
+  );
+  section.append(frame);
+
+  return section;
+}
+
+function renderFullFileDiffSide(label: string, side: 'before' | 'after', diffHtml: string): HTMLElement {
+  const column = document.createElement('section');
+  column.className = `full-file-diff-side full-file-diff-side-${side}`;
+
+  const heading = document.createElement('h3');
+  heading.textContent = label;
+  column.append(heading);
+
+  const body = document.createElement('div');
+  body.className = 'full-file-diff-html doc';
+  body.innerHTML = diffHtml;
+  column.append(body);
+
+  return column;
+}
+
+function getFullFileDiffLabel(file: Extract<StoredSource, { mode: 'full-file-diff' }>['files'][number]): string {
+  const path = file.newPath || file.oldPath || 'AsciiDoc file';
+  if (file.oldPath && file.newPath && file.oldPath !== file.newPath) {
+    return `${path} (${file.status}: ${file.oldPath})`;
+  }
+  return `${path} (${file.status})`;
 }
 
 function convertAsciiDoc(source: string): string {
@@ -99,6 +268,80 @@ function convertAsciiDoc(source: string): string {
     },
     extension_registry: registry,
   }));
+}
+
+function renderFullFileHtmlDiff(file: Extract<StoredSource, { mode: 'full-file-diff' }>['files'][number]): string {
+  const settings = currentSettings || { allowedPreviewHosts: [], allowedGitLabHosts: ['gitlab.com'] };
+  const beforeHtml = file.oldSource?.trim()
+    ? prepareHtmlForDiff(rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.oldSource), file.oldSourceUrl, settings)))
+    : '';
+  const afterHtml = file.newSource?.trim()
+    ? prepareHtmlForDiff(rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.newSource), file.newSourceUrl, settings)))
+    : '';
+
+  if (!beforeHtml && !afterHtml) {
+    return '<p class="full-file-diff-empty">No content is available for this file.</p>';
+  }
+
+  return renderHtmlDiff({
+    beforeHtml,
+    afterHtml,
+  });
+}
+
+function prepareHtmlForDiff(html: string): string {
+  const document = new DOMParser().parseFromString(`<main>${html}</main>`, 'text/html');
+  const root = document.body.querySelector('main');
+  if (!root) {
+    return html;
+  }
+
+  let sectionKey = 'root';
+  const seenKeys = new Map<string, number>();
+  for (const element of [...root.querySelectorAll<HTMLElement>(diffKeyElementSelector)]) {
+    if (isHeadingElement(element)) {
+      sectionKey = `${element.tagName.toLowerCase()}:${stableTextFingerprint(element.textContent || '') || 'untitled'}`;
+    }
+
+    const key = uniqueDiffKey(`${sectionKey}:${element.tagName.toLowerCase()}:${stableElementFingerprint(element) || 'empty'}`, seenKeys);
+    element.dataset.diffKey = key;
+
+    if (isWordDiffElement(element)) {
+      element.dataset.diffMode = 'words';
+    }
+  }
+
+  return root.innerHTML;
+}
+
+function isHeadingElement(element: Element): boolean {
+  return /^H[1-6]$/.test(element.tagName);
+}
+
+function isWordDiffElement(element: Element): boolean {
+  return ['P', 'LI', 'DT', 'DD', 'TH', 'TD'].includes(element.tagName);
+}
+
+function uniqueDiffKey(baseKey: string, seenKeys: Map<string, number>): string {
+  const count = seenKeys.get(baseKey) || 0;
+  seenKeys.set(baseKey, count + 1);
+  return count === 0 ? baseKey : `${baseKey}:${count + 1}`;
+}
+
+function stableElementFingerprint(element: HTMLElement): string {
+  const id = element.id || element.getAttribute('data-diagram-type') || element.getAttribute('data-lang') || '';
+  const text = stableTextFingerprint(element.textContent || '');
+  return stableTextFingerprint(`${id}:${text}`);
+}
+
+function stableTextFingerprint(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .slice(0, 96)
+    .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff]+/gi, '-')
+    .replace(/^-+|-+$/g, '') || 'content';
 }
 
 function registerEmbeddedDiagramBlocks(registry: any): void {
@@ -506,13 +749,6 @@ function renderEmptyState(): void {
   setTitle('Open an AsciiDoc file');
   if (preview) {
     preview.innerHTML = '<h1>Open an AsciiDoc file</h1><p>Use the Open button, or open a local .adoc, .ad, .asciidoc, or .asc file in Chrome or Edge after enabling file URL access for this extension.</p>';
-  }
-}
-
-function applyWidth(width: 'default' | 'window'): void {
-  document.body.classList.toggle('preview-width-window', width === 'window');
-  if (toggleWidthButton) {
-    toggleWidthButton.setAttribute('aria-pressed', String(width === 'window'));
   }
 }
 

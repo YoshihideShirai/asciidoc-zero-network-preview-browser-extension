@@ -10,18 +10,20 @@
   <main>
     <h1>AsciiDoc Preview Options</h1>
     <label>
-      Preview width
-      <select id="preview-width">
-        <option value="default">Default reading width</option>
-        <option value="window">Full window width</option>
-      </select>
-    </label>
-    <label>
       Allowed remote image hosts
       <textarea id="allowed-hosts" rows="8" spellcheck="false" placeholder="example.com&#10;https://images.example.org"></textarea>
     </label>
     <p class="note">Remote images are blocked unless their exact host is listed here. Host-only entries allow http and https for that host.</p>
-    <button id="save" type="button">Save</button>
+    <label>
+      GitLab full diff preview hosts
+      <textarea id="allowed-gitlab-hosts" rows="5" spellcheck="false" placeholder="gitlab.com&#10;gitlab.example.co.jp"></textarea>
+    </label>
+    <p class="note">GitLab merge request full diff previews fetch metadata and changed AsciiDoc files only from these HTTPS hosts after clicking Full diff preview.</p>
+    <div class="actions">
+      <button id="save" type="button">Save</button>
+      <button id="save-return" type="button" hidden>Save and return</button>
+      <a id="return-link" href="viewer.html" hidden>Back to preview</a>
+    </div>
     <p id="status" role="status"></p>
   </main>
   <script type="module" src="options.js"></script>
