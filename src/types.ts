@@ -39,6 +39,7 @@ export type GitHubPullRequestRef = {
 
 export type GitLabMergeRequestRef = {
   platform: 'gitlab';
+  host: string;
   projectPath: string;
   mergeRequestIid: number;
   sourceUrl?: string;
@@ -47,11 +48,13 @@ export type GitLabMergeRequestRef = {
 export type PreviewSettings = {
   previewWidth: PreviewWidth;
   allowedPreviewHosts: string[];
+  allowedGitLabHosts: string[];
 };
 
 export const defaultSettings: PreviewSettings = {
   previewWidth: 'default',
   allowedPreviewHosts: [],
+  allowedGitLabHosts: ['gitlab.com'],
 };
 
 export const asciiDocFilePattern = /\.(adoc|asciidoc|asc|ad)(?:[?#].*)?$/i;

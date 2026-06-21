@@ -1,8 +1,10 @@
 import { getSettings, saveSettings } from './storage';
+import { normalizeGitLabHosts } from './gitlab-hosts';
 import type { PreviewWidth } from './types';
 
 const widthSelect = document.querySelector<HTMLSelectElement>('#preview-width');
 const hostsTextarea = document.querySelector<HTMLTextAreaElement>('#allowed-hosts');
+const gitlabHostsTextarea = document.querySelector<HTMLTextAreaElement>('#allowed-gitlab-hosts');
 const saveButton = document.querySelector<HTMLButtonElement>('#save');
 const status = document.querySelector<HTMLElement>('#status');
 
@@ -15,6 +17,9 @@ async function load(): Promise<void> {
   }
   if (hostsTextarea) {
     hostsTextarea.value = settings.allowedPreviewHosts.join('\n');
+  }
+  if (gitlabHostsTextarea) {
+    gitlabHostsTextarea.value = settings.allowedGitLabHosts.join('\n');
   }
 }
 
@@ -29,6 +34,7 @@ async function save(): Promise<void> {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean),
+    allowedGitLabHosts: normalizeGitLabHosts((gitlabHostsTextarea?.value || '').split(/\r?\n/)),
   });
 
   if (status) {

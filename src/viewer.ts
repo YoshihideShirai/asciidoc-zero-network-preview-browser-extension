@@ -267,7 +267,7 @@ function convertAsciiDoc(source: string): string {
 }
 
 function renderFullFileHtmlDiff(file: Extract<StoredSource, { mode: 'full-file-diff' }>['files'][number]): string {
-  const settings = currentSettings || { previewWidth: 'default', allowedPreviewHosts: [] };
+  const settings = currentSettings || { previewWidth: 'default', allowedPreviewHosts: [], allowedGitLabHosts: ['gitlab.com'] };
   const beforeHtml = file.oldSource?.trim()
     ? prepareHtmlForDiff(rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.oldSource), file.oldSourceUrl, settings)))
     : '';

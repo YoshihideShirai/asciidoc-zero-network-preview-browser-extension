@@ -1,18 +1,24 @@
 import { asciiDocFilePattern, type GitHubPullRequestRef, type GitLabMergeRequestRef, type StoredSource } from './types';
+import { getSettings } from './storage';
+import { isAllowedGitLabHost } from './gitlab-hosts';
 
 const alreadyHandledKey = 'asciidocZeroNetworkPreviewHandled';
 const codeReviewControlsId = 'asciidoc-zero-network-preview-code-review-controls';
 
 void maybeOpenPreview();
-window.addEventListener('turbo:load', installCodeReviewPreviewButton);
-window.addEventListener('popstate', installCodeReviewPreviewButton);
+window.addEventListener('turbo:load', () => {
+  void installCodeReviewPreviewButton();
+});
+window.addEventListener('popstate', () => {
+  void installCodeReviewPreviewButton();
+});
 
 async function maybeOpenPreview(): Promise<void> {
   if ((window as any)[alreadyHandledKey]) {
     return;
   }
 
-  installCodeReviewPreviewButton();
+  await installCodeReviewPreviewButton();
 
   const source = readRawDocumentText();
   if (!source) {
@@ -60,19 +66,22 @@ function looksLikeAsciiDoc(source: string): boolean {
   return /^(=|\[[a-z0-9_-]+\]|include::|image::|:[a-z0-9_-]+:|\w+::)/im.test(source);
 }
 
-function installCodeReviewPreviewButton(): void {
-  const reviewRequest = getCodeReviewRequestRef();
+async function installCodeReviewPreviewButton(): Promise<void> {
+  const reviewRequest = await getCodeReviewRequestRef();
   const existingControls = document.getElementById(codeReviewControlsId);
   if (!reviewRequest) {
     existingControls?.remove();
     return;
   }
-  if (existingControls) {
+  const reviewKey = getCodeReviewRequestKey(reviewRequest);
+  if (existingControls?.dataset.reviewKey === reviewKey) {
     return;
   }
+  existingControls?.remove();
 
   const controls = document.createElement('div');
   controls.id = codeReviewControlsId;
+  controls.dataset.reviewKey = reviewKey;
   Object.assign(controls.style, {
     position: 'fixed',
     right: '16px',
@@ -112,6 +121,13 @@ function createCodeReviewPreviewButton(label: string, title: string, onClick: (b
   return button;
 }
 
+function getCodeReviewRequestKey(reviewRequest: GitHubPullRequestRef | GitLabMergeRequestRef): string {
+  if (reviewRequest.platform === 'github') {
+    return `github:${reviewRequest.owner}/${reviewRequest.repo}#${reviewRequest.pullNumber}`;
+  }
+  return `gitlab:${reviewRequest.host}/${reviewRequest.projectPath}!${reviewRequest.mergeRequestIid}`;
+}
+
 async function openCodeReviewFullDiff(reviewRequest: GitHubPullRequestRef | GitLabMergeRequestRef, button: HTMLButtonElement): Promise<void> {
   button.disabled = true;
   button.textContent = 'Loading...';
@@ -132,8 +148,19 @@ async function openCodeReviewFullDiff(reviewRequest: GitHubPullRequestRef | GitL
   }
 }
 
-function getCodeReviewRequestRef(): GitHubPullRequestRef | GitLabMergeRequestRef | undefined {
-  return getGitHubPullRequestRef() || getGitLabMergeRequestRef();
+async function getCodeReviewRequestRef(): Promise<GitHubPullRequestRef | GitLabMergeRequestRef | undefined> {
+  const githubPullRequest = getGitHubPullRequestRef();
+  if (githubPullRequest) {
+    return githubPullRequest;
+  }
+
+  const gitLabMergeRequest = getGitLabMergeRequestRef();
+  if (!gitLabMergeRequest) {
+    return undefined;
+  }
+
+  const settings = await getSettings();
+  return isAllowedGitLabHost(gitLabMergeRequest.host, settings.allowedGitLabHosts) ? gitLabMergeRequest : undefined;
 }
 
 function getGitHubPullRequestRef(): GitHubPullRequestRef | undefined {
@@ -156,7 +183,7 @@ function getGitHubPullRequestRef(): GitHubPullRequestRef | undefined {
 }
 
 function getGitLabMergeRequestRef(): GitLabMergeRequestRef | undefined {
-  if (location.hostname !== 'gitlab.com') {
+  if (location.protocol !== 'https:') {
     return undefined;
   }
 
@@ -167,6 +194,7 @@ function getGitLabMergeRequestRef(): GitLabMergeRequestRef | undefined {
 
   return {
     platform: 'gitlab',
+    host: location.host.toLowerCase(),
     projectPath: match[1] || '',
     mergeRequestIid: Number.parseInt(match[2] || '0', 10),
     sourceUrl: location.href,

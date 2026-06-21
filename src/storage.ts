@@ -1,4 +1,5 @@
 import { defaultSettings, type PreviewSettings, type StoredSource } from './types';
+import { normalizeGitLabHosts } from './gitlab-hosts';
 
 const sourcePrefix = 'source:';
 const settingsKey = 'settings';
@@ -24,6 +25,9 @@ export async function getSettings(): Promise<PreviewSettings> {
     allowedPreviewHosts: Array.isArray(value?.allowedPreviewHosts)
       ? value.allowedPreviewHosts.filter((host) => typeof host === 'string')
       : defaultSettings.allowedPreviewHosts,
+    allowedGitLabHosts: Array.isArray(value?.allowedGitLabHosts)
+      ? normalizeGitLabHosts(value.allowedGitLabHosts.filter((host) => typeof host === 'string'))
+      : defaultSettings.allowedGitLabHosts,
   };
 }
 

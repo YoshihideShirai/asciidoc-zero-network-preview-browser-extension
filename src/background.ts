@@ -1,4 +1,5 @@
-import { saveSource } from './storage';
+import { getSettings, saveSource } from './storage';
+import { isAllowedGitLabHost, normalizeGitLabHostInput } from './gitlab-hosts';
 import { asciiDocFilePattern, type FullAsciiDocDiffFile, type GitHubPullRequestRef, type GitLabMergeRequestRef, type StoredSource } from './types';
 
 type GitHubPull = {
@@ -105,13 +106,15 @@ async function saveGitHubPullRequestFullDiff(pullRequest: GitHubPullRequestRef):
 async function saveGitLabMergeRequestFullDiff(mergeRequest: GitLabMergeRequestRef): Promise<string> {
   validateGitLabMergeRequestRef(mergeRequest);
 
+  const settings = await getSettings();
+  const host = requireAllowedGitLabHost(mergeRequest.host, settings.allowedGitLabHosts);
   const projectId = encodeGitLabProjectId(mergeRequest.projectPath);
-  const mr = await fetchGitLabJson<GitLabMergeRequest>(gitlabApiUrl(`/projects/${projectId}/merge_requests/${mergeRequest.mergeRequestIid}`));
+  const mr = await fetchGitLabJson<GitLabMergeRequest>(gitlabApiUrl(host, `/projects/${projectId}/merge_requests/${mergeRequest.mergeRequestIid}`));
   const baseSha = requireString(mr.diff_refs?.base_sha, 'Missing merge request base SHA.');
   const headSha = requireString(mr.diff_refs?.head_sha, 'Missing merge request head SHA.');
   const targetProjectId = requireNumber(mr.target_project_id, 'Missing merge request target project.');
   const sourceProjectId = requireNumber(mr.source_project_id, 'Missing merge request source project.');
-  const changedFiles = (await fetchAllGitLabMergeRequestDiffs(mergeRequest)).filter((file) => (
+  const changedFiles = (await fetchAllGitLabMergeRequestDiffs(mergeRequest, host)).filter((file) => (
     typeof file.new_path === 'string' && asciiDocFilePattern.test(file.new_path)
   ) || (
     typeof file.old_path === 'string' && asciiDocFilePattern.test(file.old_path)
@@ -124,13 +127,14 @@ async function saveGitLabMergeRequestFullDiff(mergeRequest: GitLabMergeRequestRe
       targetProjectId,
       baseSha,
       headSha,
+      host,
     }));
   }
 
   const source: StoredSource = {
     mode: 'full-file-diff',
     files,
-    title: `${mergeRequest.projectPath}!${mergeRequest.mergeRequestIid} AsciiDoc full diff`,
+    title: `${host}/${mergeRequest.projectPath}!${mergeRequest.mergeRequestIid} AsciiDoc full diff`,
     createdAt: Date.now(),
   };
   if (mergeRequest.sourceUrl) {
@@ -154,12 +158,12 @@ async function fetchAllGitHubPullFiles(pullRequest: GitHubPullRequestRef): Promi
   return files;
 }
 
-async function fetchAllGitLabMergeRequestDiffs(mergeRequest: GitLabMergeRequestRef): Promise<GitLabMergeRequestDiff[]> {
+async function fetchAllGitLabMergeRequestDiffs(mergeRequest: GitLabMergeRequestRef, host: string): Promise<GitLabMergeRequestDiff[]> {
   const files: GitLabMergeRequestDiff[] = [];
   const projectId = encodeGitLabProjectId(mergeRequest.projectPath);
   for (let page = 1; page <= 30; page += 1) {
     const pageFiles = await fetchGitLabJson<GitLabMergeRequestDiff[]>(
-      gitlabApiUrl(`/projects/${projectId}/merge_requests/${mergeRequest.mergeRequestIid}/diffs?per_page=100&page=${page}`),
+      gitlabApiUrl(host, `/projects/${projectId}/merge_requests/${mergeRequest.mergeRequestIid}/diffs?per_page=100&page=${page}`),
     );
     files.push(...pageFiles);
     if (pageFiles.length < 100) {
@@ -208,6 +212,7 @@ async function fetchFullAsciiDocGitLabDiffFile(file: GitLabMergeRequestDiff, ref
   targetProjectId: number;
   baseSha: string;
   headSha: string;
+  host: string;
 }): Promise<FullAsciiDocDiffFile> {
   const status = file.new_file ? 'added' : file.deleted_file ? 'removed' : file.renamed_file ? 'renamed' : 'modified';
   const oldPath = file.old_path || file.new_path;
@@ -223,11 +228,11 @@ async function fetchFullAsciiDocGitLabDiffFile(file: GitLabMergeRequestDiff, ref
 
   try {
     if (oldPath && status !== 'added') {
-      result.oldSourceUrl = gitlabRawFileUrl(refs.targetProjectId, refs.baseSha, oldPath);
+      result.oldSourceUrl = gitlabRawFileUrl(refs.host, refs.targetProjectId, refs.baseSha, oldPath);
       result.oldSource = await fetchGitLabText(result.oldSourceUrl);
     }
     if (newPath && status !== 'removed') {
-      result.newSourceUrl = gitlabRawFileUrl(refs.sourceProjectId, refs.headSha, newPath);
+      result.newSourceUrl = gitlabRawFileUrl(refs.host, refs.sourceProjectId, refs.headSha, newPath);
       result.newSource = await fetchGitLabText(result.newSourceUrl);
     }
   } catch (error) {
@@ -306,7 +311,7 @@ function validateGitHubPullRequestRef(pullRequest: GitHubPullRequestRef): void {
 }
 
 function validateGitLabMergeRequestRef(mergeRequest: GitLabMergeRequestRef): void {
-  if (!gitlabProjectPathPattern.test(mergeRequest.projectPath) || !Number.isInteger(mergeRequest.mergeRequestIid) || mergeRequest.mergeRequestIid < 1) {
+  if (!normalizeGitLabHostInput(mergeRequest.host) || !gitlabProjectPathPattern.test(mergeRequest.projectPath) || !Number.isInteger(mergeRequest.mergeRequestIid) || mergeRequest.mergeRequestIid < 1) {
     throw new Error('Invalid GitLab merge request reference.');
   }
 }
@@ -315,16 +320,16 @@ function githubApiUrl(path: string): string {
   return `https://api.github.com${path}`;
 }
 
-function gitlabApiUrl(path: string): string {
-  return `https://gitlab.com/api/v4${path}`;
+function gitlabApiUrl(host: string, path: string): string {
+  return `https://${host}/api/v4${path}`;
 }
 
 function githubRawUrl(owner: string, repo: string, sha: string, filePath: string): string {
   return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(sha)}/${encodeFilePath(filePath)}`;
 }
 
-function gitlabRawFileUrl(projectId: number, sha: string, filePath: string): string {
-  return gitlabApiUrl(`/projects/${projectId}/repository/files/${encodeURIComponent(filePath)}/raw?ref=${encodeURIComponent(sha)}`);
+function gitlabRawFileUrl(host: string, projectId: number, sha: string, filePath: string): string {
+  return gitlabApiUrl(host, `/projects/${projectId}/repository/files/${encodeURIComponent(filePath)}/raw?ref=${encodeURIComponent(sha)}`);
 }
 
 function encodeGitLabProjectId(projectPath: string): string {
@@ -347,6 +352,14 @@ function requireNumber(value: number | undefined, message: string): number {
     throw new Error(message);
   }
   return value;
+}
+
+function requireAllowedGitLabHost(host: string, allowedHosts: string[]): string {
+  const normalizedHost = normalizeGitLabHostInput(host);
+  if (!normalizedHost || !isAllowedGitLabHost(normalizedHost, allowedHosts)) {
+    throw new Error('GitLab host is not allowed in extension options.');
+  }
+  return normalizedHost;
 }
 
 function parseGitHubFullName(fullName: string): { owner: string; repo: string } {

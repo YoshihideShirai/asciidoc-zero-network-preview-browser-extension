@@ -32,15 +32,16 @@ const requiredText = [
   { file: 'src/viewer.ts', text: "'allow-uri-read': false" },
   { file: 'src/viewer.ts', text: "safe: 'safe'" },
   { file: 'public/manifest.json', text: "default-src 'none'" },
-  { file: 'public/manifest.json', text: 'connect-src https://api.github.com https://raw.githubusercontent.com https://gitlab.com' },
+  { file: 'public/manifest.json', text: 'connect-src https://api.github.com https://raw.githubusercontent.com https://gitlab.com https://*' },
   { file: 'public/network-guards.js', text: "setBlockedGlobal('fetch'," },
   { file: 'public/network-guards.js', text: "setBlockedGlobal('XMLHttpRequest'," },
   { file: 'public/network-guards.js', text: 'assertLocalRequest' },
   { file: 'src/background.ts', text: 'https://api.github.com' },
   { file: 'src/background.ts', text: 'https://raw.githubusercontent.com' },
-  { file: 'src/background.ts', text: 'https://gitlab.com/api/v4' },
+  { file: 'src/background.ts', text: 'requireAllowedGitLabHost' },
   { file: 'src/background.ts', text: 'store-github-pr-full-diff' },
   { file: 'src/background.ts', text: 'store-gitlab-mr-full-diff' },
+  { file: 'src/types.ts', text: "allowedGitLabHosts: ['gitlab.com']" },
 ];
 
 const failures = [];
@@ -121,7 +122,7 @@ function isAllowedLine(rel, line) {
   if (rel === 'src/content-script.ts' && /http:\/\/\*|https:\/\/\*/.test(line)) {
     return true;
   }
-  if (rel === 'src/background.ts' && isAllowedGitHubFullDiffLine(line)) {
+  if (rel === 'src/background.ts' && isAllowedCodeReviewFullDiffLine(line)) {
     return true;
   }
   if (rel === 'package.json' && /github\.com/.test(line)) {
@@ -130,9 +131,9 @@ function isAllowedLine(rel, line) {
   return false;
 }
 
-function isAllowedGitHubFullDiffLine(line) {
+function isAllowedCodeReviewFullDiffLine(line) {
   const trimmed = line.trim();
   return trimmed === 'const response = await fetch(url, {'
     || trimmed === 'const response = await fetch(url);'
-    || /https:\/\/api\.github\.com|https:\/\/raw\.githubusercontent\.com|https:\/\/gitlab\.com\/api\/v4|GitHub request failed|GitHub raw file request failed|GitLab request failed|GitLab raw file request failed/.test(trimmed);
+    || /https:\/\/api\.github\.com|https:\/\/raw\.githubusercontent\.com|https:\/\/\$\{host\}\/api\/v4|GitHub request failed|GitHub raw file request failed|GitLab request failed|GitLab raw file request failed/.test(trimmed);
 }
