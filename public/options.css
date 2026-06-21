@@ -40,7 +40,15 @@ textarea {
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 }
 
-button {
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+button,
+.actions a {
   min-height: 36px;
   padding: 0 16px;
   border: 1px solid #2f5f9f;
@@ -48,6 +56,14 @@ button {
   background: #376dae;
   color: #fff;
   font: inherit;
+  line-height: 34px;
+  text-decoration: none;
+}
+
+.actions a {
+  border-color: #b8c0cc;
+  background: #fff;
+  color: #20242a;
 }
 
 .note,

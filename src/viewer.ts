@@ -47,6 +47,7 @@ const documentTitle = document.querySelector<HTMLElement>('#document-title');
 const openFileButton = document.querySelector<HTMLButtonElement>('#open-file');
 const reloadButton = document.querySelector<HTMLButtonElement>('#reload-source');
 const toggleWidthButton = document.querySelector<HTMLButtonElement>('#toggle-width');
+const optionsLink = document.querySelector<HTMLAnchorElement>('#options-link');
 const fileInput = document.querySelector<HTMLInputElement>('#file-input');
 
 let currentSource: StoredSource | undefined;
@@ -57,6 +58,7 @@ void boot();
 async function boot(): Promise<void> {
   currentSettings = await getSettings();
   applyWidth(currentSettings.previewWidth);
+  updateOptionsLink();
 
   const sourceId = new URL(location.href).searchParams.get('sourceId');
   currentSource = sourceId ? await readSource(sourceId) : undefined;
@@ -66,6 +68,15 @@ async function boot(): Promise<void> {
   } else {
     renderEmptyState();
   }
+}
+
+function updateOptionsLink(): void {
+  if (!optionsLink) {
+    return;
+  }
+
+  const returnTo = `viewer.html${location.search}`;
+  optionsLink.href = `options.html?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
 openFileButton?.addEventListener('click', () => fileInput?.click());
