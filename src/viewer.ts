@@ -1,4 +1,5 @@
 import asciidoctorFactory from '@asciidoctor/core';
+import { renderHtmlDiff } from '@lix-js/html-diff';
 import { defaultRenderer, errorRenderer } from 'asciidoctor-kroki-embedded/html';
 import numberedCaptions from 'asciidoctor-numbered-captions';
 import { emojiMap } from './emoji-map';
@@ -168,13 +169,10 @@ function renderFullFileDiffFile(file: Extract<StoredSource, { mode: 'full-file-d
     section.append(error);
   }
 
-  const columns = document.createElement('div');
-  columns.className = 'full-file-diff-frame';
-  columns.append(
-    renderFullFileDiffColumn('Before', file.oldSource || '', file.oldSourceUrl),
-    renderFullFileDiffColumn('After', file.newSource || '', file.newSourceUrl),
-  );
-  section.append(columns);
+  const diff = document.createElement('div');
+  diff.className = 'full-file-diff-html doc';
+  diff.innerHTML = renderFullFileHtmlDiff(file);
+  section.append(diff);
 
   return section;
 }
@@ -185,31 +183,6 @@ function getFullFileDiffLabel(file: Extract<StoredSource, { mode: 'full-file-dif
     return `${path} (${file.status}: ${file.oldPath})`;
   }
   return `${path} (${file.status})`;
-}
-
-function renderFullFileDiffColumn(label: string, source: string, sourceUrl: string | undefined): HTMLElement {
-  const column = document.createElement('section');
-  column.className = `full-file-diff-column full-file-diff-${label.toLowerCase()}`;
-
-  const heading = document.createElement('h4');
-  heading.textContent = label;
-  column.append(heading);
-
-  const body = document.createElement('div');
-  body.className = 'full-file-diff-rendered doc';
-
-  if (source.trim()) {
-    const converted = convertAsciiDoc(source);
-    body.innerHTML = rewriteSourceDiagramBlocks(rewriteImageUris(converted, sourceUrl, currentSettings || { previewWidth: 'default', allowedPreviewHosts: [] }));
-  } else {
-    const empty = document.createElement('p');
-    empty.className = 'full-file-diff-empty';
-    empty.textContent = 'No content on this side of the diff.';
-    body.append(empty);
-  }
-
-  column.append(body);
-  return column;
 }
 
 function convertAsciiDoc(source: string): string {
@@ -235,6 +208,25 @@ function convertAsciiDoc(source: string): string {
     },
     extension_registry: registry,
   }));
+}
+
+function renderFullFileHtmlDiff(file: Extract<StoredSource, { mode: 'full-file-diff' }>['files'][number]): string {
+  const settings = currentSettings || { previewWidth: 'default', allowedPreviewHosts: [] };
+  const beforeHtml = file.oldSource?.trim()
+    ? rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.oldSource), file.oldSourceUrl, settings))
+    : '';
+  const afterHtml = file.newSource?.trim()
+    ? rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.newSource), file.newSourceUrl, settings))
+    : '';
+
+  if (!beforeHtml && !afterHtml) {
+    return '<p class="full-file-diff-empty">No content is available for this file.</p>';
+  }
+
+  return renderHtmlDiff({
+    beforeHtml,
+    afterHtml,
+  });
 }
 
 function registerEmbeddedDiagramBlocks(registry: any): void {
