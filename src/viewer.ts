@@ -100,6 +100,7 @@ async function renderStoredSource(stored: StoredSource): Promise<void> {
     return;
   }
 
+  document.body.classList.toggle('full-file-diff-mode', stored.mode === 'full-file-diff');
   setTitle(stored.title || stored.sourceUrl || 'AsciiDoc document');
   preview.innerHTML = '<p>Rendering...</p>';
 
