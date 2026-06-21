@@ -7,6 +7,41 @@ import { getSettings, readSource } from './storage';
 import type { PreviewSettings, StoredSource } from './types';
 
 const diagramBlockNames = ['mermaid', 'plantuml', 'nomnoml', 'vega', 'vegalite', 'wavedrom', 'bytefield'];
+const diffKeyElementSelector = [
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'p',
+  'li',
+  'dt',
+  'dd',
+  'tr',
+  'th',
+  'td',
+  'pre',
+  'blockquote',
+  'table',
+  '.sect1',
+  '.sect2',
+  '.sect3',
+  '.sect4',
+  '.sect5',
+  '.listingblock',
+  '.literalblock',
+  '.imageblock',
+  '.openblock',
+  '.sidebarblock',
+  '.admonitionblock',
+  '.exampleblock',
+  '.quoteblock',
+  '.verseblock',
+  '.stemblock',
+  '.kroki-embedded',
+  '.diagram-frame',
+].join(',');
 const preview = document.querySelector<HTMLElement>('#preview');
 const documentTitle = document.querySelector<HTMLElement>('#document-title');
 const openFileButton = document.querySelector<HTMLButtonElement>('#open-file');
@@ -213,10 +248,10 @@ function convertAsciiDoc(source: string): string {
 function renderFullFileHtmlDiff(file: Extract<StoredSource, { mode: 'full-file-diff' }>['files'][number]): string {
   const settings = currentSettings || { previewWidth: 'default', allowedPreviewHosts: [] };
   const beforeHtml = file.oldSource?.trim()
-    ? rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.oldSource), file.oldSourceUrl, settings))
+    ? prepareHtmlForDiff(rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.oldSource), file.oldSourceUrl, settings)))
     : '';
   const afterHtml = file.newSource?.trim()
-    ? rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.newSource), file.newSourceUrl, settings))
+    ? prepareHtmlForDiff(rewriteSourceDiagramBlocks(rewriteImageUris(convertAsciiDoc(file.newSource), file.newSourceUrl, settings)))
     : '';
 
   if (!beforeHtml && !afterHtml) {
@@ -227,6 +262,61 @@ function renderFullFileHtmlDiff(file: Extract<StoredSource, { mode: 'full-file-d
     beforeHtml,
     afterHtml,
   });
+}
+
+function prepareHtmlForDiff(html: string): string {
+  const document = new DOMParser().parseFromString(`<main>${html}</main>`, 'text/html');
+  const root = document.body.querySelector('main');
+  if (!root) {
+    return html;
+  }
+
+  let sectionKey = 'root';
+  const seenKeys = new Map<string, number>();
+  for (const element of [...root.querySelectorAll<HTMLElement>(diffKeyElementSelector)]) {
+    if (isHeadingElement(element)) {
+      sectionKey = `${element.tagName.toLowerCase()}:${stableTextFingerprint(element.textContent || '') || 'untitled'}`;
+    }
+
+    const key = uniqueDiffKey(`${sectionKey}:${element.tagName.toLowerCase()}:${stableElementFingerprint(element) || 'empty'}`, seenKeys);
+    element.dataset.diffKey = key;
+
+    if (isWordDiffElement(element)) {
+      element.dataset.diffMode = 'words';
+    }
+  }
+
+  return root.innerHTML;
+}
+
+function isHeadingElement(element: Element): boolean {
+  return /^H[1-6]$/.test(element.tagName);
+}
+
+function isWordDiffElement(element: Element): boolean {
+  return ['P', 'LI', 'DT', 'DD', 'TH', 'TD'].includes(element.tagName);
+}
+
+function uniqueDiffKey(baseKey: string, seenKeys: Map<string, number>): string {
+  const count = seenKeys.get(baseKey) || 0;
+  seenKeys.set(baseKey, count + 1);
+  return count === 0 ? baseKey : `${baseKey}:${count + 1}`;
+}
+
+function stableElementFingerprint(element: HTMLElement): string {
+  const id = element.id || element.getAttribute('data-diagram-type') || element.getAttribute('data-lang') || '';
+  const text = stableTextFingerprint(element.textContent || '');
+  return stableTextFingerprint(`${id}:${text}`);
+}
+
+function stableTextFingerprint(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .slice(0, 96)
+    .replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff]+/gi, '-')
+    .replace(/^-+|-+$/g, '') || 'content';
 }
 
 function registerEmbeddedDiagramBlocks(registry: any): void {
